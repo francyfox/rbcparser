@@ -11,7 +11,7 @@ class runCronXmlParser extends Command
 //    protected function configure()
 //    {
 //        $this
-//            ->setName('cron:xml:parse')
+//            ->setName('srv:xml:parse')
 //            ->setDescription('Run cron task with parsing xml to DB');
 //
 //    }
