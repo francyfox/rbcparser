@@ -17,7 +17,7 @@ class TestController extends AbstractController
     {
         $url = 'http://static.feed.rbc.ru/rbc/logical/footer/news.rss';
         $rss = $xmlType->getXmlArray($url);
-//        $xmlType->saveXmlArrayToDb($rss);
+        $xmlType->saveXmlArrayToDb($rss);
 
         return $this->render('test/index.html.twig', [
             'controller_name' => 'TestController',

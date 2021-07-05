@@ -38,7 +38,7 @@ class Logs
     private $status;
 
     /**
-     * @ORM\Column(type="text")
+     * @ORM\Column(type="text", nullable=true)
      */
     private $body;
 

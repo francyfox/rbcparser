@@ -3,19 +3,23 @@
 
 namespace App\Services;
 use App\Entity\News;
+use App\Services\LogType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class xmlType
 {
+    private $log;
     private $em;
     private $serializer;
     private $home_path;
 
     public function __construct(SerializerInterface $serializer,
-                                KernelInterface $kernel, EntityManagerInterface $em)
+                                KernelInterface $kernel, EntityManagerInterface $em,
+                                LogType $log)
     {
+        $this->log = $log;
         $this->em = $em;
         $this->serializer = $serializer;
         $this->home_path = $kernel->getProjectDir();
@@ -23,20 +27,41 @@ class xmlType
 
     function deleteOldXml (array $filenames, string $newFilename)
     {
+        foreach ($filenames as $item) {
+            if ($item !== $newFilename) {
+                unlink($item);
+            }
+        }
+    }
 
+    function key_compare_func($key1, $key2): int
+    {
+        if ($key1 == $key2)
+            return 0;
+        else if ($key1 > $key2)
+            return 1;
+        else
+            return -1;
     }
 
     function xmlToArray (array $filenames): array
     {
         $mergedArray = array();
         foreach ($filenames as $item) {
+            libxml_use_internal_errors(true);
             $xml = simplexml_load_file($item, 'SimpleXMLElement', LIBXML_NOCDATA);
+            if ($xml === false) {
+                echo "Failed loading XML\n";
+                foreach(libxml_get_errors() as $error) {
+                    echo "\t", $error->message;
+                }
+            }
             $json = json_decode(json_encode($xml), TRUE);
             $array = array_pop($json);
-            array_push($mergedArray, $array);
+            array_push($mergedArray, $array["item"]);
         }
         if (count($mergedArray) == 2) {
-            return array_diff_ukey($mergedArray[0], $mergedArray[1]);
+            return array_diff_ukey($mergedArray[0], $mergedArray[1], 'App\Services\xmlType::key_compare_func');
         } elseif (count($mergedArray) == 1) {
             return $mergedArray[0];
         }
@@ -72,17 +97,23 @@ class xmlType
             fclose($fp);
             return [];
         }
+
+        $map = glob($this->home_path.'/public/rss/*.rss');
+        $result = $this->xmlToArray($map);;
+        $this->log
+            ->setInfoFromCurl($ch, $result)
+            ->add();
+
         fflush($fp);
         fclose($fp);
         curl_close($ch);
-
-        $map = glob($this->home_path.'/public/rss/*.rss');
-        return $this->xmlToArray($map);
+        $this->deleteOldXml($map, $path);
+        return $result;
     }
 
     function saveXmlArrayToDb(array $array)
     {
-        if (!empty($array)) {
+        if (count($array) !== 0) {
             foreach ($array as $item) {
                 $news = new News();
                 $news
